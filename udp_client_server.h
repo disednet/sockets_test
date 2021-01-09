@@ -1,14 +1,9 @@
 ﻿#pragma once
 #include <string>
-#include <vector>
 #include <WinSock2.h>
 enum class SocketType {
   client,
   server
-};
-struct DataType {
-  std::string chanel;
-  std::vector<uint8_t> data;
 };
 
 class Socket {

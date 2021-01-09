@@ -1,7 +1,6 @@
 #pragma once
 #include "serializer/serializer.h"
 #include "data.h"
-#include "udp_client_server.h"
 #include <map>
 #include <string>
 #include <deque>
@@ -19,7 +18,7 @@ enum class CeiveResult {
   CR_OK = 4
 };
 
-
+class Socket;
 class Pipe {
 public:
   Pipe(Socket& socket) : m_socket(socket) {}
