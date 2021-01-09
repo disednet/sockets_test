@@ -1,5 +1,5 @@
 #include "pipe.h"
-
+#include <cassert>
 
 //===============================================================================
 template<typename package, PackageType type>
@@ -57,6 +57,12 @@ int getDataFromPackage(const char* data, unsigned int dataSize, T& outData) {
   return CeiveResult::CR_SERIALIZATION_FAIL;
 }
 
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
 SendResult Pipe::PutEventMessage(const std::string& chanel, const std::string& event, const std::string& message) {
   EventMessage data{ event, message };
   std::vector<uint8_t> serializedData;
@@ -69,6 +75,7 @@ SendResult Pipe::PutEventMessage(const std::string& chanel, const std::string& e
   return SendResult::SR_FAIL;
 }
 
+//==========================================================================
 SendResult Pipe::PutMyStruct(const std::string& chanel, const MyStruct& data) {
   std::vector<uint8_t> serializedData;
   generatePackage<MyStruct, PackageType::PT_MYSTRUCT>(chanel, data, serializedData);
@@ -80,7 +87,36 @@ SendResult Pipe::PutMyStruct(const std::string& chanel, const MyStruct& data) {
   return SendResult::SR_FAIL;
 }
 
+//==========================================================================
 CeiveResult Pipe::GetEventMessage(const std::string& chanel, std::string& outEvent, std::string& outMessage) {
+  UpdateData();
+  if (m_messages.count(chanel) > 0) {
+    if (m_messages[chanel].empty())
+      return CeiveResult::CR_FAIL;
+    auto item = m_messages[chanel].front();
+    m_messages[chanel].pop_front();
+    outEvent = item.m_event;
+    outMessage = item.m_message;
+    return CeiveResult::CR_OK;
+  }
+  return CeiveResult::CR_FAIL;
+}
+
+//==========================================================================
+CeiveResult Pipe::GetMyStruct(const std::string& chanel, MyStruct& data) {
+  UpdateData();
+  if (m_mystructures.count(chanel) > 0) {
+    if (m_mystructures[chanel].empty())
+      return CeiveResult::CR_FAIL;
+    data = m_mystructures[chanel].front();
+    return CeiveResult::CR_OK;
+  }
+  return CeiveResult::CR_FAIL;
+}
+
+
+//==========================================================================
+void Pipe::UpdateData() {
   const unsigned int maxHeaderSize = 120;
   std::vector<uint8_t> inData(maxHeaderSize);
   m_socket.ReceiveWithoutPop(reinterpret_cast<char*>(&inData.at(0)), maxHeaderSize);
@@ -88,12 +124,7 @@ CeiveResult Pipe::GetEventMessage(const std::string& chanel, std::string& outEve
   auto result = getHeader(reinterpret_cast<char*>(inData.data()), maxHeaderSize, header);
   if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
     std::cerr << "Package was currupted.\n";
-    return CeiveResult::CR_FAIL;
+    return;
   }
   assert(header.)
-    return CeiveResult::CR_OK;
-}
-
-CeiveResult Pipe::GetMyStruct(const std::string& chanel, MyStruct& data) {
-  return CeiveResult::CR_FAIL;
 }

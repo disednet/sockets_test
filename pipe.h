@@ -2,7 +2,9 @@
 #include "serializer/serializer.h"
 #include "data.h"
 #include "udp_client_server.h"
-
+#include <map>
+#include <string>
+#include <deque>
 enum class SendResult {
   SR_SERIALIZATION_FAIL = 1,
   SR_SERIALIZATION_OK = 2,
@@ -31,7 +33,10 @@ public:
     std::string& outMessage);
 
   CeiveResult GetMyStruct(const std::string& chanel, MyStruct& data);
-
+private:
+  void UpdateData();
 private:
   Socket& m_socket;
+  std::map<std::string, std::deque<EventMessage>> m_messages;
+  std::map<std::string, std::deque<MyStruct>> m_mystructures;
 };
