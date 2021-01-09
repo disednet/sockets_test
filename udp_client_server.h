@@ -18,7 +18,9 @@ public:
   int Start();
   int ShutDown();
   int Send(const char* data, unsigned int dataSize);
-  int Receive(char* data, unsigned int dataSize);
+  int Receive(char* data, unsigned int dataSize, int flag = 0);
+  int ReceiveWithoutPop(char* data, unsigned int dataSize);
+  int RecieveAll(char* data, unsigned int dataSize);
 private:
   int InitServer();
   int InitClient();

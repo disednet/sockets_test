@@ -236,29 +236,52 @@ int getDataFromPackage(const char* data, unsigned int dataSize, T& outData) {
 
 
 
-
-
-
-
-
 class Pipe {
 public:
   Pipe(Socket &socket) : m_socket(socket) {}
 
-  int PutEventMessage(const std::string &chanel, const std::string &event,
+  SendResult PutEventMessage(const std::string &chanel, const std::string &event,
                       const std::string &message) {
-
-    return 0;
+    EventMessage data{ event, message };
+    std::vector<uint8_t> serializedData;
+    generatePackage<EventMessage, PackageType::PT_EVENTLOG>(chanel, data, serializedData);
+    auto result = m_socket.Send(reinterpret_cast<char*>(serializedData.data()), serializedData.size());
+    if (result == -1) {
+      std::cerr << "Send event was failed.\n";
+      return SendResult::SR_FAIL;
+    }
+    return SendResult::SR_FAIL;
   }
 
-  int PutMyStruct(const std::string &chanel, const MyStruct &data) { return 0; }
+  SendResult PutMyStruct(const std::string &chanel, const MyStruct &data) { 
+    std::vector<uint8_t> serializedData;
+    generatePackage<MyStruct, PackageType::PT_MYSTRUCT>(chanel, data, serializedData);
+    auto result = m_socket.Send(reinterpret_cast<char*>(serializedData.data()), serializedData.size());
+    if (result == -1) {
+      std::cerr << "Send mystruct was failed.\n";
+      return SendResult::SR_FAIL;
+    }
+    return SendResult::SR_FAIL;
+  }
 
-  int GetEventMessage(const std::string &chanel, std::string &outEvent,
+  CeiveResult GetEventMessage(const std::string& chanel, std::string& outEvent,
                       std::string &outMessage) {
-    return 0;
+    const unsigned int maxHeaderSize = 120;
+    std::vector<uint8_t> inData(maxHeaderSize);
+    m_socket.ReceiveWithoutPop(reinterpret_cast<char*>(&inData.at(0)), maxHeaderSize);
+    PackageHeader header;
+    auto result = getHeader(reinterpret_cast<char*>(inData.data()), maxHeaderSize, header);
+    if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
+      std::cerr << "Package was currupted.\n";
+      return CeiveResult::CR_FAIL;
+    }
+    assert(header.)
+    return CeiveResult::CR_OK;
   }
 
-  int GetMyStruct(const std::string &chanel, MyStruct &data) { return 0; }
+  CeiveResult GetMyStruct(const std::string &chanel, MyStruct &data) { 
+    return CeiveResult::CR_FAIL; 
+  }
 
 private:
   Socket &m_socket;

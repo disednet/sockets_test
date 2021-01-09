@@ -5,44 +5,38 @@
 #include <Windows.h>
 //#include <WinSock2.h>
 #include <WS2tcpip.h>
-#include <iphlpapi.h>
-#include <iostream>
-#include <fstream>
 #include <cassert>
+#include <fstream>
+#include <iostream>
+#include <iphlpapi.h>
 
 #pragma comment(lib, "Ws2_32.lib")
-
-
 
 Socket::Socket(const std::string &addr, SocketType type) : m_type(type) {
   auto pos = addr.find(":");
   if (pos == std::string::npos) {
     m_addr = addr;
     m_port = "8086";
-  }
-  else
-  {
+  } else {
     m_addr = addr.substr(0, pos);
     m_port = addr.substr(pos + 1, addr.length() - pos - 1);
   }
 }
 
-Socket::~Socket()
-{
+Socket::~Socket() {
   ShutDown();
   CloseSocketAndCleanUp(m_socket);
 }
 
-int Socket::Start()
-{
+int Socket::Start() {
   return m_type == SocketType::client ? InitClient() : InitServer();
 }
 
-int Socket::ShutDown()
-{
+int Socket::ShutDown() {
   auto iResult = shutdown(m_socket, SD_SEND);
   if (iResult == SOCKET_ERROR) {
-    std::cerr << "shutdown failed with code: " << WSAGetLastError() << std::endl;
+    std::cerr << "shutdown failed with code: " << WSAGetLastError()
+              << std::endl;
     CloseSocketAndCleanUp(m_socket);
     return 1;
   }
@@ -50,30 +44,30 @@ int Socket::ShutDown()
   return 0;
 }
 
-int Socket::InitServer()
-{
+int Socket::InitServer() {
   std::cout << "Server start.....\n";
   WholeStart();
-  //start structs
-  struct addrinfo* result = nullptr;
-  struct addrinfo* ptr = nullptr;
+  // start structs
+  struct addrinfo *result = nullptr;
+  struct addrinfo *ptr = nullptr;
   struct addrinfo hints;
   ZeroMemory(&hints, sizeof(hints));
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
   hints.ai_flags = AI_PASSIVE;
-  //translate ansi host name to an address
+  // translate ansi host name to an address
   auto iResult = getaddrinfo(m_addr.c_str(), m_port.c_str(), &hints, &result);
   if (iResult != 0) {
     std::cerr << "getaddrinfo failed with code: " << iResult << std::endl;
     WSACleanup();
     return 1;
   }
-  
-  //create socket
+
+  // create socket
   s_socket = INVALID_SOCKET;
-  s_socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+  s_socket =
+      socket(result->ai_family, result->ai_socktype, result->ai_protocol);
   if (s_socket == INVALID_SOCKET) {
     std::cerr << "Error at socket()" << WSAGetLastError() << std::endl;
     freeaddrinfo(result);
@@ -81,7 +75,7 @@ int Socket::InitServer()
     return 1;
   }
   std::cout << "Listen socket was created." << std::endl;
-  //binding to socket
+  // binding to socket
   iResult = bind(s_socket, result->ai_addr, (int)result->ai_addrlen);
   if (iResult == SOCKET_ERROR) {
     std::cerr << "bind failed with error: " << WSAGetLastError() << std::endl;
@@ -89,18 +83,19 @@ int Socket::InitServer()
     CloseSocketAndCleanUp(s_socket);
     return 1;
   }
-  std::cout << "Listen socket was binded to " << result->ai_addr->sa_data <<std::endl;
+  std::cout << "Listen socket was binded to " << result->ai_addr->sa_data
+            << std::endl;
   freeaddrinfo(result);
-  //listeng on a socket
-  if (listen(s_socket, SOMAXCONN) == SOCKET_ERROR)
-  {
-    std::cerr << "Listen failed with error code: " << WSAGetLastError() << std::endl;
+  // listeng on a socket
+  if (listen(s_socket, SOMAXCONN) == SOCKET_ERROR) {
+    std::cerr << "Listen failed with error code: " << WSAGetLastError()
+              << std::endl;
     CloseSocketAndCleanUp(s_socket);
     return 1;
   }
   std::cout << "Listen start." << std::endl;
-  //accapting a connection
-  //first of all create client socket
+  // accapting a connection
+  // first of all create client socket
   m_socket = INVALID_SOCKET;
   m_socket = accept(s_socket, nullptr, nullptr);
   if (m_socket == INVALID_SOCKET) {
@@ -109,17 +104,16 @@ int Socket::InitServer()
     return 1;
   }
   std::cout << "Client socket was accepted" << std::endl;
-  //now we can close server socket
-  //closesocket(s_socket);
+  // now we can close server socket
+  // closesocket(s_socket);
   return 0;
 }
 
-int Socket::InitClient()
-{
+int Socket::InitClient() {
   WholeStart();
-  //start structs
-  struct addrinfo* result = nullptr;
-  struct addrinfo* ptr = nullptr;
+  // start structs
+  struct addrinfo *result = nullptr;
+  struct addrinfo *ptr = nullptr;
   struct addrinfo hints;
   int iResult;
   m_socket = INVALID_SOCKET;
@@ -127,26 +121,25 @@ int Socket::InitClient()
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
-  //translate ansi host name to an address
-  
+  // translate ansi host name to an address
+
   iResult = getaddrinfo(m_addr.c_str(), m_port.c_str(), &hints, &result);
   if (iResult != 0) {
     std::cerr << "getaddrinfo failed with code: " << iResult << std::endl;
     WSACleanup();
     return 1;
   }
-  //create socket
+  // create socket
   ptr = result;
   for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
     m_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-    if (m_socket == INVALID_SOCKET)
-    {
+    if (m_socket == INVALID_SOCKET) {
       std::cerr << "Error at socket() : " << WSAGetLastError() << std::endl;
       freeaddrinfo(result);
       WSACleanup();
       return 1;
     }
-    //connect to server
+    // connect to server
     iResult = connect(m_socket, ptr->ai_addr, (int)ptr->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
       closesocket(m_socket);
@@ -164,8 +157,7 @@ int Socket::InitClient()
   return 0;
 }
 
-int Socket::WholeStart()
-{
+int Socket::WholeStart() {
   std::cout << "Start init net dll's...\n";
   WSADATA wsaData;
   int iResult;
@@ -178,14 +170,12 @@ int Socket::WholeStart()
   return 0;
 }
 
-void Socket::CloseSocketAndCleanUp(SOCKET socket)
-{
+void Socket::CloseSocketAndCleanUp(SOCKET socket) {
   closesocket(socket);
   WSACleanup();
 }
 
-int Socket::Send(const char* data, unsigned int dataSize)
-{
+int Socket::Send(const char *data, unsigned int dataSize) {
   assert(m_socket != INVALID_SOCKET);
   auto iResult = send(m_socket, data, dataSize, 0);
   if (iResult == SOCKET_ERROR) {
@@ -196,20 +186,41 @@ int Socket::Send(const char* data, unsigned int dataSize)
   return 0;
 }
 
-int Socket::Receive(char* data, unsigned int dataSize)
-{
+int Socket::Receive(char *data, unsigned int dataSize, int flag) {
   assert(m_socket != INVALID_SOCKET);
-  auto iResult = recv(m_socket, data, dataSize, 0);
+  auto iResult = recv(m_socket, data, dataSize, flag);
   if (iResult > 0) {
     return iResult;
-  }
-  else if (iResult == 0)
+  } else if (iResult == 0)
     std::cout << "connection closed \n";
-  else
-  {
+  else {
     std::cerr << "receiv failed with code: " << WSAGetLastError() << std::endl;
     CloseSocketAndCleanUp(m_socket);
     return 1;
+  }
+  return 0;
+}
+
+int Socket::ReceiveWithoutPop(char *data, unsigned int dataSize) {
+  return Receive(data, dataSize, MSG_PEEK);
+}
+
+int Socket::RecieveAll(char* data, unsigned int dataSize)
+{
+  assert(m_socket != INVALID_SOCKET);
+  unsigned int total = 0;
+  while (total < dataSize) {
+    auto result = recv(m_socket, data + total, dataSize - total, 0);
+    if (result > 0) {
+      total += result;
+    }
+    else if (result == 0)
+      std::cout << "connection closed \n";
+    else {
+      std::cerr << "receiv failed with code: " << WSAGetLastError() << std::endl;
+      CloseSocketAndCleanUp(m_socket);
+      return 1;
+    }
   }
   return 0;
 }
