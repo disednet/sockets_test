@@ -10,11 +10,13 @@ namespace {
   template<typename package, PackageType type>
   SendResult generatePackage(const std::string& chanel,
     const package& data, std::vector<uint8_t>& outData) {
-    const std::size_t header_const_size = 8 + 8 + chanel.size() + sizeof(PackageType);
     BinarySerializer ser1;
+    BinarySerializer headerSer;
     try {
+      PackageHeader h2;
+      headerSer << h2;
       ser1 << data;
-      PackageHeader header{ PackageSize{ser1.getSize() + header_const_size, ser1.getSize()}, chanel, type };
+      PackageHeader header{ PackageSize{ser1.getSize() + headerSer.getSize(), ser1.getSize()}, chanel, type };
       BinarySerializer finalSer;
       finalSer << header;
       finalSer << ser1;
@@ -147,7 +149,7 @@ void Pipe::UpdateData() {
   }
   PackageHeader header;
   result = getElement(reinterpret_cast<char*>(inData.data()), sizeInfo.wholeSize - sizeInfo.dataSize, header);
-  if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
+  if (result == CeiveResult::CR_SERIALIZATION_FAIL || header.package_type == PackageType::PT_BAD) {
     std::cerr << "Package was currupted.\n";
     return;
   }

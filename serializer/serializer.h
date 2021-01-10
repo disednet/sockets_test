@@ -29,7 +29,7 @@ public:
 
   template <typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T> || std::is_enum_v<T>>>
   void operator>>(T &data) {
-    if (std::distance(m_iterator, m_buffer.end()) > sizeof(T)) {
+    if (std::distance(m_iterator, m_buffer.end()) >= sizeof(T)) {
       data = *(reinterpret_cast<T *>(&(*m_iterator)));
       m_iterator += sizeof(T);
       m_citerator = m_iterator;
