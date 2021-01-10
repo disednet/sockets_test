@@ -11,9 +11,19 @@ void operator>>(BinarySerializer& ser, MyStruct& data) {
   ser >> data.data;
 }
 
+BinarySerializer& operator<<(BinarySerializer& ser, const PackageSize& sizeInfo) {
+  ser << sizeInfo.wholeSize;
+  ser << sizeInfo.dataSize;
+  return ser;
+}
+
+void operator>>(BinarySerializer& ser, PackageSize& sizeInfo) {
+  ser >> sizeInfo.wholeSize;
+  ser >> sizeInfo.dataSize;
+}
+
 BinarySerializer& operator<<(BinarySerializer& ser, const PackageHeader& header) {
   ser << header.package_size;
-  ser << header.data_size;
   ser << header.chanel_name;
   ser << header.package_type;
   return ser;
@@ -21,7 +31,6 @@ BinarySerializer& operator<<(BinarySerializer& ser, const PackageHeader& header)
 
 void operator>>(BinarySerializer& ser, PackageHeader& header) {
   ser >> header.package_size;
-  ser >> header.data_size;
   ser >> header.chanel_name;
   ser >> header.package_type;
 }

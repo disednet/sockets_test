@@ -14,7 +14,7 @@ namespace {
     BinarySerializer ser1;
     try {
       ser1 << data;
-      PackageHeader header{ ser1.getSize() + header_const_size, ser1.getSize(), chanel, type };
+      PackageHeader header{ PackageSize{ser1.getSize() + header_const_size, ser1.getSize()}, chanel, type };
       BinarySerializer finalSer;
       finalSer << header;
       finalSer << ser1;
@@ -29,13 +29,15 @@ namespace {
     }
     return SendResult::SR_SERIALIZATION_OK;
   }
+
   //===============================================================================
-  CeiveResult getHeader(const char* data, unsigned int dataSize, PackageHeader& header) {
-    std::vector<uint8_t> buffer(dataSize);
-    memcpy(&buffer[0], data, dataSize);
+  template<typename ElementType>
+  CeiveResult getElement(const char* data, unsigned int dataSize, ElementType& element, unsigned int offset = 0) {
+    std::vector<uint8_t> buffer(dataSize - offset);
+    memcpy(&buffer[0], data + offset, dataSize - offset);
     BinarySerializer ser(std::move(buffer));
     try {
-      ser >> header;
+      ser >> element;
     }
     catch (std::runtime_error& error) {
       std::cerr << error.what() << std::endl;
@@ -43,16 +45,17 @@ namespace {
     }
     return CeiveResult::CR_SERIALIZATION_OK;
   }
+
   //===============================================================================
   template<typename T, PackageType type>
   CeiveResult getDataFromPackage(const char* data, unsigned int dataSize, T& outData) {
     PackageHeader header;
-    auto result = getHeader(data, dataSize, header);
+    auto result = getElement(data, dataSize, header);
     if (result == CeiveResult::CR_SERIALIZATION_OK) {
-      if (header.data_size != 0 && header.data_size <= dataSize) {
-        std::vector<uint8_t> buffer(header.data_size);
-        const auto dataOffset = header.package_size - header.data_size;
-        memcpy(&buffer[0], data+dataOffset, header.data_size);
+      if (header.package_size.dataSize != 0 && header.package_size.dataSize <= dataSize) {
+        std::vector<uint8_t> buffer(header.package_size.dataSize);
+        const auto dataOffset = header.package_size.wholeSize - header.package_size.dataSize;
+        memcpy(&buffer[0], data+dataOffset, header.package_size.dataSize);
         BinarySerializer ser(std::move(buffer));
         try {
           ser >> outData;
@@ -127,19 +130,25 @@ CeiveResult Pipe::GetMyStruct(const std::string& chanel, MyStruct& data) {
 
 //==========================================================================
 void Pipe::UpdateData() {
-  const unsigned int maxHeaderSize = 50;
+  const unsigned int maxHeaderSize = sizeof(PackageSize);
   std::vector<uint8_t> inData(maxHeaderSize);
   m_socket.ReceiveWithoutPop(reinterpret_cast<char*>(&inData.at(0)), maxHeaderSize);
-  PackageHeader header;
-  auto result = getHeader(reinterpret_cast<char*>(inData.data()), maxHeaderSize, header);
+  PackageSize sizeInfo;
+  auto result = getElement(reinterpret_cast<char*>(inData.data()), maxHeaderSize, sizeInfo);
   if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
     std::cerr << "Package was currupted.\n";
     return;
   }
-  inData.resize(header.package_size);
-  auto ceivResult = m_socket.RecieveAll(reinterpret_cast<char*>(&inData.at(0)), header.package_size);
+  inData.resize(sizeInfo.wholeSize);
+  auto ceivResult = m_socket.RecieveAll(reinterpret_cast<char*>(&inData.at(0)), sizeInfo.wholeSize);
   if (ceivResult != 0) {
     std::cerr << "Error was happened while reading package body.\n";
+    return;
+  }
+  PackageHeader header;
+  result = getElement(reinterpret_cast<char*>(inData.data()), sizeInfo.wholeSize - sizeInfo.dataSize, header);
+  if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
+    std::cerr << "Package was currupted.\n";
     return;
   }
   if (header.package_type == PackageType::PT_MYSTRUCT) {

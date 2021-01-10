@@ -32,13 +32,18 @@ enum class PackageType : uint8_t {
   PT_BAD = 8,
 };
 
+struct PackageSize {
+  uint64_t wholeSize{0};
+  uint64_t dataSize{0};
+};
 
 struct PackageHeader {
-  uint64_t package_size{ 0 }; // data_size + len(chanel_name)
-  uint64_t data_size{ 0 };
+  PackageSize package_size;
   std::string chanel_name{ "" }; //"name close by \n"
   PackageType package_type{ PackageType::PT_BAD };
 };
+
+
 
 struct EventMessage {
   std::string m_event;
@@ -47,6 +52,8 @@ struct EventMessage {
 //===============================================================================
 BinarySerializer& operator<<(BinarySerializer& ser, const MyStruct& data);
 void operator>>(BinarySerializer& ser, MyStruct& data);
+BinarySerializer& operator<<(BinarySerializer& ser, const PackageSize& size);
+void operator>>(BinarySerializer& ser, PackageSize& size);
 BinarySerializer& operator<<(BinarySerializer& ser, const PackageHeader& header);
 void operator>>(BinarySerializer& ser, PackageHeader& header);
 BinarySerializer& operator<<(BinarySerializer& ser, const EventMessage& event);
