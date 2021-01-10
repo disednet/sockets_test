@@ -11,12 +11,10 @@ namespace {
   SendResult generatePackage(const std::string& chanel,
     const package& data, std::vector<uint8_t>& outData) {
     BinarySerializer ser1;
-    BinarySerializer headerSer;
+    const unsigned int header_size = sizeof(PackageSize) + 8 + chanel.size() + sizeof(PackageType);
     try {
-      PackageHeader h2;
-      headerSer << h2;
       ser1 << data;
-      PackageHeader header{ PackageSize{ser1.getSize() + headerSer.getSize(), ser1.getSize()}, chanel, type };
+      PackageHeader header{ PackageSize{ser1.getSize() + header_size, ser1.getSize()}, chanel, type };
       BinarySerializer finalSer;
       finalSer << header;
       finalSer << ser1;
