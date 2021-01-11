@@ -29,25 +29,25 @@ int main(int arg, char **argv) {
   data2.data = {11, 22, 33, 44};
 
   pipeWriter.PutEventMessage("A", "event1", "message1");
-  /*pipeWriter.PutEventMessage("A", "event2", "message2");
+  pipeWriter.PutEventMessage("A", "event2", "message2");
   pipeWriter.PutEventMessage("B", "event3", "message3");
   pipeWriter.PutEventMessage("B", "event4", "message4");
   pipeWriter.PutMyStruct("chanel1", data1);
   pipeWriter.PutMyStruct("chanel2", data2);
-  */
+  
   MyStruct data3, data4;
   std::string evnt, message;
   pipeReader.GetEventMessage("A", evnt, message);
   assert(evnt == "event1" && message == "message1");
-  /*pipeReader.GetEventMessage("B", evnt, message);
+  pipeReader.GetEventMessage("B", evnt, message);
   assert(evnt == "event3" && message == "message3");
   pipeReader.GetMyStruct("chanel2", data3);
   assert(data3 == data2);
   pipeReader.GetEventMessage("A", evnt, message);
   assert(evnt == "event2" && message == "message2");
   pipeReader.GetEventMessage("B", evnt, message);
-  assert(evnt == "event4" && message == "message3");
+  assert(evnt == "event4" && message == "message4");
   pipeReader.GetMyStruct("chanel1", data4);
-  assert(data4 == data1);*/
+  assert(data4 == data1);
   return 0;
 }

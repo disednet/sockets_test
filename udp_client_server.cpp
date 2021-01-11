@@ -103,6 +103,13 @@ int Socket::InitServer() {
     CloseSocketAndCleanUp(s_socket);
     return 1;
   }
+  unsigned long mode = 1;
+  iResult = ioctlsocket(m_socket, FIONBIO, &mode);
+  if (iResult == SOCKET_ERROR) {
+    std::cerr << "Fault on set non-blocking mode.\n";
+    CloseSocketAndCleanUp(m_socket);
+    return 1;
+  }
   std::cout << "Client socket was accepted" << std::endl;
   // now we can close server socket
   // closesocket(s_socket);
@@ -154,6 +161,13 @@ int Socket::InitClient() {
     WSACleanup();
     return 1;
   }
+  unsigned long mode = 1;
+  iResult = ioctlsocket(m_socket, FIONBIO, &mode);
+  if (iResult == SOCKET_ERROR) {
+    std::cerr << "Fault on set non-blocking mode.\n";
+    CloseSocketAndCleanUp(m_socket);
+    return 1;
+  }
   return 0;
 }
 
@@ -181,9 +195,9 @@ int Socket::Send(const char *data, unsigned int dataSize) {
   if (iResult == SOCKET_ERROR) {
     std::cerr << "send failed with error: " << WSAGetLastError() << std::endl;
     CloseSocketAndCleanUp(m_socket);
-    return 1;
+    return -1;
   }
-  return 0;
+  return iResult;
 }
 
 int Socket::Receive(char *data, unsigned int dataSize, int flag) {
@@ -191,12 +205,18 @@ int Socket::Receive(char *data, unsigned int dataSize, int flag) {
   auto iResult = recv(m_socket, data, dataSize, flag);
   if (iResult > 0) {
     return iResult;
-  } else if (iResult == 0)
-    std::cout << "connection closed \n";
+  }
+  else if (iResult == 0) {
+    std::cout << "Socket was closed\n";
+    return 0;
+  }
   else {
+    if (WSAGetLastError() == WSAEWOULDBLOCK) {
+      return 0;
+    }
     std::cerr << "receiv failed with code: " << WSAGetLastError() << std::endl;
     CloseSocketAndCleanUp(m_socket);
-    return 1;
+    return -1;
   }
   return 0;
 }
@@ -210,17 +230,13 @@ int Socket::RecieveAll(char* data, unsigned int dataSize)
   assert(m_socket != INVALID_SOCKET);
   unsigned int total = 0;
   while (total < dataSize) {
-    auto result = recv(m_socket, data + total, dataSize - total, 0);
+    //auto result = recv(m_socket, data + total, dataSize - total, 0);
+    auto result = Receive(data + total, dataSize - total);
     if (result > 0) {
       total += result;
     }
-    else if (result == 0)
-      std::cout << "connection closed \n";
-    else {
-      std::cerr << "receiv failed with code: " << WSAGetLastError() << std::endl;
-      CloseSocketAndCleanUp(m_socket);
-      return 1;
-    }
+    else
+      return result;
   }
   return 0;
 }

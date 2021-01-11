@@ -85,6 +85,7 @@ SendResult Pipe::PutEventMessage(const std::string& chanel, const std::string& e
     std::cerr << "Send event was failed.\n";
     return SendResult::SR_FAIL;
   }
+  assert(result == serializedData.size());
   return SendResult::SR_OK;
 }
 
@@ -132,43 +133,45 @@ CeiveResult Pipe::GetMyStruct(const std::string& chanel, MyStruct& data) {
 void Pipe::UpdateData() {
   const unsigned int maxHeaderSize = sizeof(PackageSize);
   std::vector<uint8_t> inData(maxHeaderSize);
-  m_socket.ReceiveWithoutPop(reinterpret_cast<char*>(&inData.at(0)), maxHeaderSize);
-  PackageSize sizeInfo;
-  auto result = getElement(reinterpret_cast<char*>(inData.data()), maxHeaderSize, sizeInfo);
-  if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
-    std::cerr << "Package was currupted.\n";
-    return;
-  }
-  inData.resize(sizeInfo.wholeSize);
-  auto ceivResult = m_socket.RecieveAll(reinterpret_cast<char*>(&inData.at(0)), sizeInfo.wholeSize);
-  if (ceivResult != 0) {
-    std::cerr << "Error was happened while reading package body.\n";
-    return;
-  }
-  PackageHeader header;
-  result = getElement(reinterpret_cast<char*>(inData.data()), sizeInfo.wholeSize - sizeInfo.dataSize, header);
-  if (result == CeiveResult::CR_SERIALIZATION_FAIL || header.package_type == PackageType::PT_BAD) {
-    std::cerr << "Package was currupted.\n";
-    return;
-  }
-  if (header.package_type == PackageType::PT_MYSTRUCT) {
-    MyStruct data;
-    if (getDataFromPackage<MyStruct, PackageType::PT_MYSTRUCT>(reinterpret_cast<const char*>(inData.data()), inData.size(), data) == CeiveResult::CR_SERIALIZATION_OK) {
-      m_mystructures[header.chanel_name].push_back(data);
-    }
-    else {
-      std::cerr << "Can't converte data to MyStruct.\n";
+  while (m_socket.ReceiveWithoutPop(reinterpret_cast<char*>(&inData.at(0)), maxHeaderSize)) {
+    PackageSize sizeInfo;
+    auto result = getElement(reinterpret_cast<char*>(inData.data()), maxHeaderSize, sizeInfo);
+    if (result == CeiveResult::CR_SERIALIZATION_FAIL) {
+      std::cerr << "Package was currupted.\n";
       return;
     }
-  }
-  else if (header.package_type == PackageType::PT_EVENTLOG) {
-    EventMessage data;
-    if (getDataFromPackage<EventMessage, PackageType::PT_EVENTLOG>(reinterpret_cast<const char*>(inData.data()), inData.size(), data) == CeiveResult::CR_SERIALIZATION_OK) {
-      m_messages[header.chanel_name].push_back(data);
-    }
-    else {
-      std::cerr << "Can't converte data to EventMessage.\n";
+    inData.resize(sizeInfo.wholeSize);
+    auto ceivResult = m_socket.RecieveAll(reinterpret_cast<char*>(&inData.at(0)), sizeInfo.wholeSize);
+    if (ceivResult != 0) {
+      std::cerr << "Error was happened while reading package body.\n";
       return;
     }
+    PackageHeader header;
+    result = getElement(reinterpret_cast<char*>(inData.data()), sizeInfo.wholeSize - sizeInfo.dataSize, header);
+    if (result == CeiveResult::CR_SERIALIZATION_FAIL || header.package_type == PackageType::PT_BAD) {
+      std::cerr << "Package was currupted.\n";
+      return;
+    }
+    if (header.package_type == PackageType::PT_MYSTRUCT) {
+      MyStruct data;
+      if (getDataFromPackage<MyStruct, PackageType::PT_MYSTRUCT>(reinterpret_cast<const char*>(inData.data()), inData.size(), data) == CeiveResult::CR_SERIALIZATION_OK) {
+        m_mystructures[header.chanel_name].push_back(data);
+      }
+      else {
+        std::cerr << "Can't converte data to MyStruct.\n";
+        return;
+      }
+    }
+    else if (header.package_type == PackageType::PT_EVENTLOG) {
+      EventMessage data;
+      if (getDataFromPackage<EventMessage, PackageType::PT_EVENTLOG>(reinterpret_cast<const char*>(inData.data()), inData.size(), data) == CeiveResult::CR_SERIALIZATION_OK) {
+        m_messages[header.chanel_name].push_back(data);
+      }
+      else {
+        std::cerr << "Can't converte data to EventMessage.\n";
+        return;
+      }
+    }
   }
+  
 }
